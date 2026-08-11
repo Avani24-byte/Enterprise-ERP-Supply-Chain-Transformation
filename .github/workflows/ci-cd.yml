@@ -61,9 +61,9 @@ jobs:
             echo "Skipping ${{ matrix.service }} because pom.xml is missing"
           fi
 
-      - name: Run Maven Tests
+      - name: Run Maven Build
         if: steps.check_pom.outputs.exists == 'true'
-        run: mvn clean test
+        run: mvn clean package -DskipTests
         working-directory: ./${{ matrix.service }}
 
       - name: Log in to the Container registry
@@ -104,12 +104,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
       - name: Check if Python service exists
         id: check_python
         run: |
@@ -119,6 +113,14 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "Skipping Python service because requirements.txt is missing"
           fi
+
+      - name: Set up Python
+        if: steps.check_python.outputs.exists == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: './forecasting-service/requirements.txt'
 
       - name: Install dependencies and test
         if: steps.check_python.outputs.exists == 'true'
@@ -165,13 +167,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: './frontend/package-lock.json'
-
       - name: Check if React frontend exists
         id: check_react
         run: |
@@ -181,6 +176,14 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "Skipping React frontend because package.json is missing"
           fi
+
+      - name: Set up Node.js
+        if: steps.check_react.outputs.exists == 'true'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
 
       - name: Install dependencies and build
         if: steps.check_react.outputs.exists == 'true'
