@@ -38,7 +38,7 @@ export default function SalesOrderForm({ onSubmit }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-lg shadow p-6 space-y-4 max-w-md"
+      className="bg-black rounded-lg shadow p-6 space-y-4 max-w-md"
     >
       <h3 className="text-lg font-semibold text-gray-800">New Sales Order</h3>
 
