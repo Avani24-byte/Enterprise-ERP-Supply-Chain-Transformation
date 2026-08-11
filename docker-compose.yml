@@ -1,0 +1,529 @@
+version: "3.9"
+
+# =============================================================================
+# Enterprise ERP Supply Chain — Docker Compose
+# Covers all DB infrastructure for local development:
+#   - 4 × PostgreSQL instances (one per service)
+#   - 1 × MongoDB instance (Logistics)
+#   - 1 × Redis instance (Cache)
+#   - Kafka + Zookeeper (Event bus)
+#
+# Author : Misba (Database Engineer) — DB wiring
+#          Yogith (DevOps)           — extend with service containers
+# =============================================================================
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # POSTGRESQL — Procurement Service
+  # DB name    : procurement_db
+  # Port       : 5432 (host) → 5432 (container)
+  # ──────────────────────────────────────────────────────────────────────────
+  procurement-db:
+    image: postgres:15-alpine
+    container_name: procurement-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: procurement_db
+      POSTGRES_USER: procurement_user
+      POSTGRES_PASSWORD: procurement_pass
+    ports:
+      - "5432:5432"
+    
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      procurement-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-inventory:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
+    volumes:
+      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-order:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
+    volumes:
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+volumes:
+      - procurement_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U procurement_user -d procurement_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp-network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # POSTGRESQL — Inventory Service
+  # DB name    : inventory_db
+  # Port       : 5433 (host) → 5432 (container)
+  # ──────────────────────────────────────────────────────────────────────────
+  inventory-db:
+    image: postgres:15-alpine
+    container_name: inventory-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_pass
+    ports:
+      - "5433:5432"
+    
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      procurement-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-inventory:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
+    volumes:
+      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-order:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
+    volumes:
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+volumes:
+      - inventory_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp-network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # POSTGRESQL — Order Service
+  # DB name    : order_db
+  # Port       : 5434 (host) → 5432 (container)
+  # ──────────────────────────────────────────────────────────────────────────
+  order-db:
+    image: postgres:15-alpine
+    container_name: order-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: order_user
+      POSTGRES_PASSWORD: order_pass
+    ports:
+      - "5434:5432"
+    
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      procurement-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-inventory:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
+    volumes:
+      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-order:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
+    volumes:
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+volumes:
+      - order_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order_user -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp-network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # POSTGRESQL — Notification Service
+  # DB name    : notification_db
+  # Port       : 5435 (host) → 5432 (container)
+  # ──────────────────────────────────────────────────────────────────────────
+  notification-db:
+    image: postgres:15-alpine
+    container_name: notification-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: notification_user
+      POSTGRES_PASSWORD: notification_pass
+    ports:
+      - "5435:5432"
+    
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      procurement-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-inventory:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
+    volumes:
+      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-order:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
+    volumes:
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+volumes:
+      - notification_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_user -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp-network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # MONGODB — Logistics Service
+  # DB name    : logistics_db
+  # Port       : 27017 (host) → 27017 (container)
+  # ──────────────────────────────────────────────────────────────────────────
+  logistics-db:
+    image: mongo:7
+    container_name: logistics-db
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: logistics_db
+      MONGO_INITDB_ROOT_USERNAME: logistics_user
+      MONGO_INITDB_ROOT_PASSWORD: logistics_pass
+    ports:
+      - "27017:27017"
+    
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      procurement-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-inventory:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
+    volumes:
+      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-order:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
+    volumes:
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+volumes:
+      - logistics_data:/data/db
+      # Automatically run index creation and seed data on first start
+      - ./logistics-service/mongodb/indexes.js:/docker-entrypoint-initdb.d/01_indexes.js:ro
+      - ./logistics-service/mongodb/seed_data.js:/docker-entrypoint-initdb.d/02_seed.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - erp-network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # REDIS — Cache (Inventory service live stock levels)
+  # Port : 6379 (host) → 6379 (container)
+  # No persistence (cache only — data re-warms from PostgreSQL on restart)
+  # ──────────────────────────────────────────────────────────────────────────
+  cache:
+    image: redis:7-alpine
+    container_name: redis-cache
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp-network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ZOOKEEPER — Required by Kafka
+  # ──────────────────────────────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      procurement-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-inventory:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
+    volumes:
+      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-order:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
+    volumes:
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - erp-network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # KAFKA — Event bus (Avani's domain — included here for local dev)
+  # Topics (auto-created by producers):
+  #   order.placed | stock.low | stock.movement.created
+  #   shipment.dispatched | reorder.triggered
+  # ──────────────────────────────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_started
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168        # 7 days
+    ports:
+      - "29092:29092"                       # host access (localhost:29092)
+      - "9092:9092"                         # inter-container access
+    
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      procurement-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-inventory:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
+    volumes:
+      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-order:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
+    volumes:
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - erp-network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # KAFKA UI — Web UI for inspecting topics and messages (dev convenience)
+  # http://localhost:8090
+  # ──────────────────────────────────────────────────────────────────────────
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_started
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "8090:8080"
+    networks:
+      - erp-network
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NAMED VOLUMES — Persistent storage for all DB containers
+# ──────────────────────────────────────────────────────────────────────────────
+
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      procurement-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-inventory:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
+    volumes:
+      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  flyway-order:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
+    volumes:
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+volumes:
+  procurement_data:
+    driver: local
+  inventory_data:
+    driver: local
+  order_data:
+    driver: local
+  notification_data:
+    driver: local
+  logistics_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_log:
+    driver: local
+  kafka_data:
+    driver: local
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NETWORK
+# ──────────────────────────────────────────────────────────────────────────────
+networks:
+  erp-network:
+    driver: bridge
+    name: erp-network
