@@ -43,10 +43,14 @@ export default function SalesOrderForm({ onSubmit }) {
       <h3 className="text-lg font-semibold text-gray-800">New Sales Order</h3>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">
+        <label
+          htmlFor="customer"
+          className="block text-sm font-medium text-gray-600"
+        >
           Customer
         </label>
         <input
+          id="customer"
           name="customer"
           value={form.customer}
           onChange={handleChange}
@@ -58,8 +62,14 @@ export default function SalesOrderForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">Item</label>
+        <label
+          htmlFor="item"
+          className="block text-sm font-medium text-gray-600"
+        >
+          Item
+        </label>
         <input
+          id="item"
           name="item"
           value={form.item}
           onChange={handleChange}
@@ -71,10 +81,14 @@ export default function SalesOrderForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">
+        <label
+          htmlFor="quantity"
+          className="block text-sm font-medium text-gray-600"
+        >
           Quantity
         </label>
         <input
+          id="quantity"
           type="number"
           name="quantity"
           value={form.quantity}
@@ -87,10 +101,14 @@ export default function SalesOrderForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">
+        <label
+          htmlFor="deliveryDate"
+          className="block text-sm font-medium text-gray-600"
+        >
           Delivery Date
         </label>
         <input
+          id="deliveryDate"
           type="date"
           name="deliveryDate"
           value={form.deliveryDate}

@@ -38,17 +38,22 @@ export default function PurchaseOrderForm({ onSubmit }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-lg shadow p-6 space-y-4 max-w-md"
+      className="bg-black rounded-lg shadow p-6 space-y-4 max-w-md"
     >
       <h3 className="text-lg font-semibold text-gray-800">
         New Purchase Order
       </h3>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">
+        {/* added htmlFor */}
+        <label
+          htmlFor="vendor"
+          className="block text-sm font-medium text-gray-600"
+        >
           Vendor
         </label>
         <input
+          id="vendor"
           name="vendor"
           value={form.vendor}
           onChange={handleChange}
@@ -60,8 +65,14 @@ export default function PurchaseOrderForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">Item</label>
+        <label
+          htmlFor="item"
+          className="block text-sm font-medium text-gray-600"
+        >
+          Item
+        </label>
         <input
+          id="item"
           name="item"
           value={form.item}
           onChange={handleChange}
@@ -73,10 +84,14 @@ export default function PurchaseOrderForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">
+        <label
+          htmlFor="quantity"
+          className="block text-sm font-medium text-gray-600"
+        >
           Quantity
         </label>
         <input
+          id="quantity"
           type="number"
           name="quantity"
           value={form.quantity}
@@ -89,10 +104,14 @@ export default function PurchaseOrderForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">
+        <label
+          htmlFor="expectedDate"
+          className="block text-sm font-medium text-gray-600"
+        >
           Expected Date
         </label>
         <input
+          id="expectedDate"
           type="date"
           name="expectedDate"
           value={form.expectedDate}

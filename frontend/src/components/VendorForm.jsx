@@ -40,15 +40,19 @@ export default function VendorForm({ onSubmit }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-lg shadow p-6 space-y-4 max-w-md"
+      className="bg-black rounded-lg shadow p-6 space-y-4 max-w-md"
     >
       <h3 className="text-lg font-semibold text-gray-800">New Vendor Record</h3>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">
+        <label
+          htmlFor="name"
+          className="block text-sm font-medium text-gray-600"
+        >
           Vendor Name
         </label>
         <input
+          id="name"
           name="name"
           value={form.name}
           onChange={handleChange}
@@ -60,8 +64,14 @@ export default function VendorForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">Email</label>
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-600"
+        >
+          Email
+        </label>
         <input
+          id="email"
           name="email"
           value={form.email}
           onChange={handleChange}
@@ -73,8 +83,14 @@ export default function VendorForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">Phone</label>
+        <label
+          htmlFor="phone"
+          className="block text-sm font-medium text-gray-600"
+        >
+          Phone
+        </label>
         <input
+          id="phone"
           name="phone"
           value={form.phone}
           onChange={handleChange}
@@ -86,10 +102,14 @@ export default function VendorForm({ onSubmit }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-600">
+        <label
+          htmlFor="address"
+          className="block text-sm font-medium text-gray-600"
+        >
           Address
         </label>
         <input
+          id="address"
           name="address"
           value={form.address}
           onChange={handleChange}
