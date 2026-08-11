@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 version: '3.8'
 
 services:
@@ -6,6 +7,12 @@ services:
   # ==========================================
 
   postgres:
+=======
+version: "3.9"
+
+services:
+  procurement-db:
+>>>>>>> Stashed changes
     image: postgres:15-alpine
     container_name: postgres
     environment:
@@ -14,12 +21,18 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
+<<<<<<< Updated upstream
+=======
+    volumes:
+      - procurement_data:/var/lib/postgresql/data
+>>>>>>> Stashed changes
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+<<<<<<< Updated upstream
   mongodb:
     image: mongo:6
     container_name: mongodb
@@ -28,13 +41,93 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     ports:
       - "27017:27017"
+=======
+  inventory-db:
+    image: postgres:15-alpine
+    container_name: inventory-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - inventory_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp-network
+
+  order-db:
+    image: postgres:15-alpine
+    container_name: order-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: order_user
+      POSTGRES_PASSWORD: order_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - order_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order_user -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp-network
+
+  notification-db:
+    image: postgres:15-alpine
+    container_name: notification-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: notification_user
+      POSTGRES_PASSWORD: notification_pass
+    ports:
+      - "5435:5432"
+    volumes:
+      - notification_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_user -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp-network
+
+  logistics-db:
+    image: mongo:7
+    container_name: logistics-db
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: logistics_db
+      MONGO_INITDB_ROOT_USERNAME: logistics_user
+      MONGO_INITDB_ROOT_PASSWORD: logistics_pass
+    ports:
+      - "27017:27017"
+    volumes:
+      - logistics_data:/data/db
+      - ./logistics-service/mongodb/indexes.js:/docker-entrypoint-initdb.d/01_indexes.js:ro
+      - ./logistics-service/mongodb/seed_data.js:/docker-entrypoint-initdb.d/02_seed.js:ro
+>>>>>>> Stashed changes
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
       timeout: 5s
       retries: 5
 
+<<<<<<< Updated upstream
   redis:
+=======
+  cache:
+>>>>>>> Stashed changes
     image: redis:7-alpine
     container_name: redis
     ports:
@@ -51,16 +144,27 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+<<<<<<< Updated upstream
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "2181"]
       interval: 10s
       timeout: 5s
       retries: 5
+=======
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - erp-network
+>>>>>>> Stashed changes
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     depends_on:
+<<<<<<< Updated upstream
       zookeeper:
         condition: service_healthy
     ports:
@@ -235,6 +339,36 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_started
+=======
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+    ports:
+      - "29092:29092"
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - erp-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+>>>>>>> Stashed changes
     ports:
       - "8086:8086"
     environment:
@@ -243,11 +377,19 @@ services:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
 
+<<<<<<< Updated upstream
   analytics-service:
     build:
       context: ./analytics-service
       dockerfile: ../devops-templates/Dockerfile.java
     container_name: analytics-service
+=======
+  flyway-procurement:
+    image: flyway/flyway:9-alpine
+    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
+    volumes:
+      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+>>>>>>> Stashed changes
     depends_on:
       postgres:
         condition: service_healthy
@@ -293,6 +435,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     volumes:
+<<<<<<< Updated upstream
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
@@ -308,3 +451,34 @@ services:
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+=======
+      - ./order-service/src/main/resources/db/migration:/flyway/sql
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+volumes:
+  procurement_data:
+    driver: local
+  inventory_data:
+    driver: local
+  order_data:
+    driver: local
+  notification_data:
+    driver: local
+  logistics_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_log:
+    driver: local
+  kafka_data:
+    driver: local
+
+networks:
+  erp-network:
+    driver: bridge
+    name: erp-network
+>>>>>>> Stashed changes
