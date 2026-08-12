@@ -1,118 +1,42 @@
-version: "3.9"
+version: '3.8'
 
 services:
-  procurement-db:
+  # ==========================================
+  # INFRASTRUCTURE
+  # ==========================================
+
+  postgres:
     image: postgres:15-alpine
-    container_name: procurement-db
-    restart: unless-stopped
+    container_name: postgres
     environment:
-      POSTGRES_DB: procurement_db
-      POSTGRES_USER: procurement_user
-      POSTGRES_PASSWORD: procurement_pass
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
-    volumes:
-      - procurement_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U procurement_user -d procurement_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - erp-network
 
-  inventory-db:
-    image: postgres:15-alpine
-    container_name: inventory-db
-    restart: unless-stopped
+  mongodb:
+    image: mongo:6
+    container_name: mongodb
     environment:
-      POSTGRES_DB: inventory_db
-      POSTGRES_USER: inventory_user
-      POSTGRES_PASSWORD: inventory_pass
-    ports:
-      - "5433:5432"
-    volumes:
-      - inventory_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - erp-network
-
-  order-db:
-    image: postgres:15-alpine
-    container_name: order-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: order_db
-      POSTGRES_USER: order_user
-      POSTGRES_PASSWORD: order_pass
-    ports:
-      - "5434:5432"
-    volumes:
-      - order_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U order_user -d order_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - erp-network
-
-  notification-db:
-    image: postgres:15-alpine
-    container_name: notification-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: notification_db
-      POSTGRES_USER: notification_user
-      POSTGRES_PASSWORD: notification_pass
-    ports:
-      - "5435:5432"
-    volumes:
-      - notification_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notification_user -d notification_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - erp-network
-
-  logistics-db:
-    image: mongo:7
-    container_name: logistics-db
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_DATABASE: logistics_db
-      MONGO_INITDB_ROOT_USERNAME: logistics_user
-      MONGO_INITDB_ROOT_PASSWORD: logistics_pass
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     ports:
       - "27017:27017"
-    volumes:
-      - logistics_data:/data/db
-      - ./logistics-service/mongodb/indexes.js:/docker-entrypoint-initdb.d/01_indexes.js:ro
-      - ./logistics-service/mongodb/seed_data.js:/docker-entrypoint-initdb.d/02_seed.js:ro
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 15s
-      timeout: 10s
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
       retries: 5
-    networks:
-      - erp-network
 
-  cache:
+  redis:
     image: redis:7-alpine
-    container_name: redis-cache
-    restart: unless-stopped
-    command: >
-      redis-server
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --save ""
-      --appendonly no
+    container_name: redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -120,114 +44,267 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - erp-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
-    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-      - zookeeper_log:/var/lib/zookeeper/log
-    networks:
-      - erp-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
-    restart: unless-stopped
     depends_on:
-      - zookeeper
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_LOG_RETENTION_HOURS: 168
+      zookeeper:
+        condition: service_healthy
     ports:
-      - "29092:29092"
       - "9092:9092"
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    networks:
-      - erp-network
-
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    restart: unless-stopped
-    depends_on:
-      - kafka
     environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID:-1}
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  # ==========================================
+  # PLATFORM SERVICES
+  # ==========================================
+
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: eureka-server
     ports:
-      - "8090:8080"
-    networks:
-      - erp-network
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
 
-  flyway-procurement:
-    image: flyway/flyway:9-alpine
-    command: -url=jdbc:postgresql://procurement-db:5432/procurement_db -user=procurement_user -password=procurement_pass -connectRetries=60 migrate
-    volumes:
-      - ./procurement-service/src/main/resources/db/migration:/flyway/sql
+  api-gateway:
+    build:
+      context: ./gateway-service
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: api-gateway
     depends_on:
-      procurement-db:
-        condition: service_healthy
-    networks:
-      - erp-network
+      - eureka-server
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
 
-  flyway-inventory:
-    image: flyway/flyway:9-alpine
-    command: -url=jdbc:postgresql://inventory-db:5432/inventory_db -user=inventory_user -password=inventory_pass -connectRetries=60 migrate
-    volumes:
-      - ./inventory-service/src/main/resources/db/migration:/flyway/sql
+  # ==========================================
+  # MICROSERVICES
+  # ==========================================
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: auth-service
     depends_on:
-      inventory-db:
+      postgres:
         condition: service_healthy
-    networks:
-      - erp-network
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
 
-  flyway-order:
-    image: flyway/flyway:9-alpine
-    command: -url=jdbc:postgresql://order-db:5432/order_db -user=order_user -password=order_pass -connectRetries=60 migrate
-    volumes:
-      - ./order-service/src/main/resources/db/migration:/flyway/sql
+  procurement-service:
+    build:
+      context: ./procurement-service
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: procurement-service
     depends_on:
-      order-db:
+      postgres:
         condition: service_healthy
-    networks:
-      - erp-network
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
 
-volumes:
-  procurement_data:
-    driver: local
-  inventory_data:
-    driver: local
-  order_data:
-    driver: local
-  notification_data:
-    driver: local
-  logistics_data:
-    driver: local
-  zookeeper_data:
-    driver: local
-  zookeeper_log:
-    driver: local
-  kafka_data:
-    driver: local
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: inventory-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
 
-networks:
-  erp-network:
-    driver: bridge
-    name: erp-network
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: order-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
+
+  logistics-service:
+    build:
+      context: ./logistics-service
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: logistics-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATA_MONGODB_URI=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/logistics?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: notification-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
+
+  analytics-service:
+    build:
+      context: ./analytics-service
+      dockerfile: ../devops-templates/Dockerfile.java
+    container_name: analytics-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus,health,info
+
+  forecasting-service:
+    build:
+      context: ./forecasting-service
+      dockerfile: ../devops-templates/Dockerfile.python
+    container_name: forecasting-service
+    ports:
+      - "8000:8000"
+
+  # ==========================================
+  # FRONTEND
+  # ==========================================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../devops-templates/Dockerfile.react
+    container_name: frontend
+    ports:
+      - "3000:80" 
+    depends_on:
+      - api-gateway
+
+  # ==========================================
+  # MONITORING
+  # ==========================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
